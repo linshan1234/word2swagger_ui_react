@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自訂檔案拖放樣式 */
+.dropzone-container {
+  @apply w-1/3 bg-white p-6 m-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500;
+}
+
+/* 自訂按鈕樣式 */
+.upload-button {
+  @apply mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600;
+}
+
+/* 檔案列表標題 */
+.file-list-title {
+  @apply text-lg font-semibold mb-4;
+}
+
+/* 單個檔案卡片 */
+.file-item {
+  @apply flex justify-between items-center bg-gray-50 p-3 mb-2 rounded-lg border;
+}
+
+/* 檔案名稱樣式 */
+.file-name {
+  @apply text-sm font-medium text-gray-800;
+}
+
+/* 檔案大小樣式 */
+.file-size {
+  @apply text-xs text-gray-500;
+}
+
+/* 刪除按鈕樣式 */
+.delete-button {
+  @apply text-red-500 hover:text-red-700;
+}
+
+
+/* 右側檔案列表容器樣式 */
+.file-list-container {
+  @apply w-full max-w-[60%] bg-white p-8 m-4 mx-auto rounded-lg shadow-lg border border-gray-200 overflow-y-auto;
+}
