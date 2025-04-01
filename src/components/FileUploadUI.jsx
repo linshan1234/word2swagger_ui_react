@@ -1,6 +1,4 @@
-"use client"
-
-import { useState, useCallback, useEffect } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import {
   Trash2,
@@ -16,8 +14,10 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import SuccessModal from "./SuccessModal"
+import { useNavigate } from "react-router-dom"
 
 const FileUploadUI = () => {
+  const navigate = useNavigate()
   const [files, setFiles] = useState([])
   const [setSelectedFile] = useState(null)
   const [showModal, setShowModal] = useState(false)
@@ -62,18 +62,24 @@ const FileUploadUI = () => {
     setFiles((prevFiles) => prevFiles.filter((file) => file.name !== fileName))
   }
 
-  // 開啟檔案在新視窗
-  const openFileInNewWindow = (fileId, fileName) => {
-    // 假設檔案的URL是基於ID的
-    const fileUrl = `http://127.0.0.1:6688/api/files/${fileId}`
-    window.open(fileUrl, "_blank")
-    console.log(`開啟檔案: ${fileName}`)
+  // // 開啟檔案在新視窗
+  // const openFileInNewWindow = (fileId, fileName) => {
+  //   // 假設檔案的URL是基於ID的
+  //   const fileUrl = `http://127.0.0.1:6678/api/files/${fileId}`
+  //   window.open(fileUrl, "_blank")
+  //   console.log(`開啟檔案: ${fileName}`)
+  // }
+
+  // 點擊檔名後跳轉到 /preview/{filename}
+  const handleFileClick = (fileId, fileName) => {
+    const previewUrl = `/preview/${fileId}`
+    window.open(previewUrl, "_blank") // 👈 在新分頁開啟
   }
 
   // 取得上傳歷史記錄的 API
   const fetchHistory = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:6688/api/history")
+      const response = await fetch("http://127.0.0.1:6678/api/history")
       if (response.ok) {
         const data = await response.json()
 
@@ -104,7 +110,7 @@ const FileUploadUI = () => {
       const formData = new FormData()
       formData.append("docxfile", selectedFiles[0].file) // ✅ 上傳第一個檔案
 
-      const response = await fetch("http://127.0.0.1:6688/api/upload", {
+      const response = await fetch("http://127.0.0.1:6678/api/upload", {
         method: "POST",
         body: formData,
       })
@@ -241,7 +247,7 @@ const FileUploadUI = () => {
                         className="bg-blue-100 p-2 rounded-lg mr-4"
                         whileHover={{
                           scale: 1.1,
-                          rotate: [0, 2, -2, 0], // 小幅旋轉以增加動感
+                          rotate: [0, 2],
                         }}
                         transition={{
                           type: "spring",
@@ -254,7 +260,7 @@ const FileUploadUI = () => {
                       <div className="flex-1">
                         {/* 檔名動畫 + 點擊功能 */}
                         <motion.div
-                          onClick={() => openFileInNewWindow(file.id, file.name)}
+                          onClick={() => handleFileClick(file.id, file.name)}
                           className="group cursor-pointer"
                           whileTap={{ scale: 0.95 }}
                         >
@@ -437,4 +443,3 @@ const FileUploadUI = () => {
 }
 
 export default FileUploadUI
-
