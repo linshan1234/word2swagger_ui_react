@@ -1,80 +1,21 @@
+"use client"
+
 import { useState, useCallback, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
-import { Trash2, Edit2, UploadCloud, FileText, Search, ChevronLeft, ChevronRight, XCircle, File, Check } from "lucide-react"
+import {
+  Trash2,
+  Edit2,
+  UploadCloud,
+  FileText,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  XCircle,
+  File,
+  ExternalLink,
+} from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-
-// 成功上傳動畫組件
-const SuccessModal = ({ onClose }) => {
-  useEffect(() => {
-    // 3秒後自動關閉
-    const timer = setTimeout(() => {
-      onClose()
-    }, 3000)
-
-    return () => clearTimeout(timer)
-  }, [onClose])
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-      <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.5, opacity: 0 }}
-        className="bg-white p-8 rounded-lg shadow-xl flex flex-col items-center max-w-sm w-full"
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{
-            type: "spring",
-            stiffness: 260,
-            damping: 20,
-            delay: 0.1,
-          }}
-          className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-4"
-        >
-          <motion.div
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Check className="text-green-500" size={50} strokeWidth={3} />
-          </motion.div>
-        </motion.div>
-
-        <motion.h3
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-xl font-semibold text-gray-800 mb-2"
-        >
-          上傳成功！
-        </motion.h3>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="text-gray-600 text-center"
-        >
-          您的檔案已成功上傳至系統
-        </motion.p>
-
-        <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          onClick={onClose}
-          className="mt-6 bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          確定
-        </motion.button>
-      </motion.div>
-    </div>
-  )
-}
+import SuccessModal from "./SuccessModal"
 
 const FileUploadUI = () => {
   const [files, setFiles] = useState([])
@@ -84,9 +25,10 @@ const FileUploadUI = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [hoveredFile, setHoveredFile] = useState(null)
 
-   // 處理拖曳或選擇檔案 - 修改為支持多個檔案
-   const onDrop = useCallback((acceptedFiles) => {
+  // 處理拖曳或選擇檔案 - 修改為支持多個檔案
+  const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
       const newFiles = acceptedFiles.map((file) => ({
         file,
@@ -120,25 +62,56 @@ const FileUploadUI = () => {
     setFiles((prevFiles) => prevFiles.filter((file) => file.name !== fileName))
   }
 
-  // 上傳檔案 API
+  // 開啟檔案在新視窗
+  const openFileInNewWindow = (fileId, fileName) => {
+    // 假設檔案的URL是基於ID的
+    const fileUrl = `http://127.0.0.1:6688/api/files/${fileId}`
+    window.open(fileUrl, "_blank")
+    console.log(`開啟檔案: ${fileName}`)
+  }
+
+  // 取得上傳歷史記錄的 API
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:6688/api/history")
+      if (response.ok) {
+        const data = await response.json()
+
+        // 解析 API 數據，格式化成檔案列表
+        const formattedData = data.map((file) => ({
+          name: file.filename, // 將 filename 作為 name
+          uploadDate: file.created_at, // 將 created_at 作為上傳時間
+          id: file.id,
+        }))
+
+        setFiles(formattedData) // 更新 files 狀態
+      } else {
+        console.error("無法取得歷史記錄：", response.statusText)
+      }
+    } catch (error) {
+      console.error("獲取歷史記錄時發生錯誤：", error)
+    }
+  }
+
+  // 修改 handleUpload：在成功上傳後調用 fetchHistory
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
       alert("請先選擇檔案！")
       return
     }
-  
+
     try {
       const formData = new FormData()
       formData.append("docxfile", selectedFiles[0].file) // ✅ 上傳第一個檔案
-  
+
       const response = await fetch("http://127.0.0.1:6688/api/upload", {
         method: "POST",
         body: formData,
       })
-  
+
       if (response.status === 200) {
-        // 將所有上傳的檔案添加到檔案列表
-        setFiles((prevFiles) => [...prevFiles, ...selectedFiles])
+        // 更新檔案列表
+        await fetchHistory() // ✅ 上傳成功後自動取得歷史記錄
         setShowModal(false) // 關閉上傳確認視窗
         setShowSuccessModal(true) // 顯示成功視窗
         setSelectedFiles([]) // 重置選擇的檔案
@@ -150,7 +123,6 @@ const FileUploadUI = () => {
       alert("上傳失敗，請檢查 API 連線！")
     }
   }
-  
 
   // 關閉彈跳視窗
   const handleCloseModal = () => {
@@ -162,7 +134,6 @@ const FileUploadUI = () => {
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false)
   }
-  
 
   const handleEdit = (fileName) => {
     console.log(`編輯功能尚未實作：${fileName}`)
@@ -184,7 +155,10 @@ const FileUploadUI = () => {
     setCurrentPage(1)
   }, [searchQuery])
 
-  
+  // 初始化時獲取歷史記錄
+  useEffect(() => {
+    fetchHistory()
+  }, [])
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100 overflow-hidden">
@@ -240,7 +214,7 @@ const FileUploadUI = () => {
           </div>
         </div>
 
-        {/* 可滾動的檔案列表 - 移除了內邊距，讓內容更貼近邊緣 */}
+        {/* 可滾動的檔案列表 - 更新顯示檔名和上傳時間 */}
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           {filteredFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
@@ -253,39 +227,102 @@ const FileUploadUI = () => {
               <ul className="divide-y divide-gray-100">
                 {paginatedFiles.map((file, index) => (
                   <motion.li
-                    key={file.name}
+                    key={file.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
                     className="flex justify-between items-center p-4 hover:bg-gray-50 transition-colors duration-200"
+                    onMouseEnter={() => setHoveredFile(file.id)}
+                    onMouseLeave={() => setHoveredFile(null)}
                   >
-                    <div className="flex items-center">
-                      <div className="bg-blue-100 p-2 rounded-lg mr-4">
+                    <div className="flex items-center flex-1">
+                      <motion.div
+                        className="bg-blue-100 p-2 rounded-lg mr-4"
+                        whileHover={{
+                          scale: 1.1,
+                          rotate: [0, 2, -2, 0], // 小幅旋轉以增加動感
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 200,
+                          damping: 10,
+                        }}
+                      >
                         <FileText size={24} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{file.name}</p>
-                        <div className="flex flex-wrap gap-x-4 mt-1">
-                          <p className="text-xs text-gray-500">{file.size} KB</p>
-                          <p className="text-xs text-gray-500">上傳時間：{file.uploadDate}</p>
-                        </div>
+                      </motion.div>
+                      <div className="flex-1">
+                        {/* 檔名動畫 + 點擊功能 */}
+                        <motion.div
+                          onClick={() => openFileInNewWindow(file.id, file.name)}
+                          className="group cursor-pointer"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <motion.p
+                            className={`text-sm font-medium ${
+                              hoveredFile === file.id ? "text-blue-600" : "text-gray-800"
+                            } transition-colors duration-200 flex items-center`}
+                            animate={
+                              hoveredFile === file.id
+                                ? {
+                                    scale: 1.02,
+                                    textShadow: [
+                                      "0px 0px 0px rgba(59, 130, 246, 0)",
+                                      "0px 0px 6px rgba(59, 130, 246, 0.4)",
+                                      "0px 0px 0px rgba(59, 130, 246, 0)",
+                                    ],
+                                  }
+                                : { scale: 1 }
+                            }
+                            transition={{
+                              duration: 0.3,
+                              ease: "easeInOut",
+                            }}
+                          >
+                            {file.name}
+                            {hoveredFile === file.id && (
+                              <motion.span
+                                initial={{ opacity: 0, x: -5 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -5 }}
+                                transition={{
+                                  duration: 0.2,
+                                  ease: "easeInOut",
+                                }}
+                                className="ml-2 text-blue-500"
+                              >
+                                <ExternalLink size={14} />
+                              </motion.span>
+                            )}
+                          </motion.p>
+                        </motion.div>
+                        <p className="text-xs text-gray-500">上傳時間：{file.uploadDate}</p>
                       </div>
                     </div>
                     <div className="flex space-x-3">
                       <motion.button
-                        whileHover={{ scale: 1.1 }}
+                        whileHover={{ scale: 1.1, backgroundColor: "#e0f2fe" }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => handleEdit(file.name)}
                         className="text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-full"
+                        transition={{
+                          type: "spring",
+                          stiffness: 150,
+                          damping: 15,
+                        }}
                       >
                         <Edit2 size={18} />
                       </motion.button>
                       <motion.button
-                        whileHover={{ scale: 1.1 }}
+                        whileHover={{ scale: 1.1, backgroundColor: "#fee2e2" }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => removeFile(file.name)}
                         className="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-full"
+                        transition={{
+                          type: "spring",
+                          stiffness: 150,
+                          damping: 15,
+                        }}
                       >
                         <Trash2 size={18} />
                       </motion.button>
@@ -400,3 +437,4 @@ const FileUploadUI = () => {
 }
 
 export default FileUploadUI
+
