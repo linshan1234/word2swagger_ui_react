@@ -12,7 +12,7 @@ const PreviewPage = () => {
   useEffect(() => {
     const fetchYaml = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:6678/api/file/${fileId}`)
+        const response = await fetch(`http://127.0.0.1:6678/api/record/${fileId}`)
         if (!response.ok) throw new Error("無法獲取檔案")
 
         const data = await response.json()

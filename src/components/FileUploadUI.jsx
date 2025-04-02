@@ -14,10 +14,8 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import SuccessModal from "./SuccessModal"
-import { useNavigate } from "react-router-dom"
 
 const FileUploadUI = () => {
-  const navigate = useNavigate()
   const [files, setFiles] = useState([])
   const [setSelectedFile] = useState(null)
   const [showModal, setShowModal] = useState(false)
@@ -58,17 +56,27 @@ const FileUploadUI = () => {
   }
 
   // 刪除檔案
-  const removeFile = (fileName) => {
-    setFiles((prevFiles) => prevFiles.filter((file) => file.name !== fileName))
-  }
+  const removeFile = async (fileId,fileName) => {
+    const confirmDelete = window.confirm(`確定要刪除檔案「${fileName}」嗎？`)
+    if (!confirmDelete) return
+    
+    try {
+    const response = await fetch(`http://127.0.0.1:6678/api/record/${fileId}`, {
+    method: "DELETE",
+    })
+    if (response.ok) {
+      await fetchHistory(); // 刪除成功後自動取得歷史記錄
+    } else {
+      alert(`刪除失敗：${response.statusText}`)
+    }
+    
+    
+    } catch (error) {
+    console.error("刪除時發生錯誤：", error)
+    alert("刪除失敗，請檢查 API 連線！")
+    }
+    }
 
-  // // 開啟檔案在新視窗
-  // const openFileInNewWindow = (fileId, fileName) => {
-  //   // 假設檔案的URL是基於ID的
-  //   const fileUrl = `http://127.0.0.1:6678/api/files/${fileId}`
-  //   window.open(fileUrl, "_blank")
-  //   console.log(`開啟檔案: ${fileName}`)
-  // }
 
   // 點擊檔名後跳轉到 /preview/{filename}
   const handleFileClick = (fileId, fileName) => {
@@ -79,7 +87,7 @@ const FileUploadUI = () => {
   // 取得上傳歷史記錄的 API
   const fetchHistory = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:6678/api/history")
+      const response = await fetch("http://127.0.0.1:6678/api/records")
       if (response.ok) {
         const data = await response.json()
 
@@ -100,35 +108,37 @@ const FileUploadUI = () => {
   }
 
   // 修改 handleUpload：在成功上傳後調用 fetchHistory
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) {
-      alert("請先選擇檔案！")
-      return
+  // 設定 loading 狀態
+const [isloading, setIsLoading] = useState(false);
+const handleUpload = async () => {
+  setIsLoading(true); // 啟動 loading 狀態
+  try {
+    const formData = new FormData();
+    selectedFiles.forEach((fileObj) => {
+      formData.append("docxfiles", fileObj.file);
+    });
+    const response = await fetch("http://127.0.0.1:6678/api/records", {
+      method: "POST",
+      body: formData,
+    });
+
+
+    if (response.status === 200) {
+      // 成功處理
+      await fetchHistory();
+      setShowModal(false);
+      setShowSuccessModal(true);
+      setSelectedFiles([]);
+    } else {
+      alert(`上傳失敗：${response.statusText}`);
     }
-
-    try {
-      const formData = new FormData()
-      formData.append("docxfile", selectedFiles[0].file) // ✅ 上傳第一個檔案
-
-      const response = await fetch("http://127.0.0.1:6678/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      if (response.status === 200) {
-        // 更新檔案列表
-        await fetchHistory() // ✅ 上傳成功後自動取得歷史記錄
-        setShowModal(false) // 關閉上傳確認視窗
-        setShowSuccessModal(true) // 顯示成功視窗
-        setSelectedFiles([]) // 重置選擇的檔案
-      } else {
-        alert(`上傳失敗：${response.statusText}`)
-      }
-    } catch (error) {
-      console.error("上傳時發生錯誤：", error)
-      alert("上傳失敗，請檢查 API 連線！")
-    }
+  } catch (error) {
+    console.error("上傳時發生錯誤：", error);
+    alert("上傳失敗，請檢查 API 連線！");
+  } finally {
+    setIsLoading(false);
   }
+};
 
   // 關閉彈跳視窗
   const handleCloseModal = () => {
@@ -149,7 +159,7 @@ const FileUploadUI = () => {
   const filteredFiles = files.filter((file) => file.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   // 分頁處理
-  const itemsPerPage = 5
+  const itemsPerPage = 10
   const totalPages = Math.max(1, Math.ceil(filteredFiles.length / itemsPerPage))
   const paginatedFiles = filteredFiles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
@@ -168,7 +178,7 @@ const FileUploadUI = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100 overflow-hidden">
-      {/* Left Panel: Upload */}
+      {/* Left Panel: 上傳檔案 */}
       <div className="w-full md:w-1/3 flex items-center justify-center p-4 md:p-6">
         <motion.div
           {...getRootProps()}
@@ -192,7 +202,7 @@ const FileUploadUI = () => {
         </motion.div>
       </div>
 
-      {/* Right Panel: File List - 移除了多餘的間距，讓它切齊邊緣 */}
+      {/* Right Panel: File List - */}
       <div className="w-full md:w-2/3 flex-1 flex flex-col bg-white md:border-l border-gray-200">
         <div className="p-4 border-b">
           <h2 className="text-xl font-semibold text-gray-800 mb-3">已上傳的檔案</h2>
@@ -309,7 +319,7 @@ const FileUploadUI = () => {
                       <motion.button
                         whileHover={{ scale: 1.1, backgroundColor: "#e0f2fe" }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => handleEdit(file.name)}
+                        onClick={() => handleEdit(file.id)}
                         className="text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-full"
                         transition={{
                           type: "spring",
@@ -322,7 +332,7 @@ const FileUploadUI = () => {
                       <motion.button
                         whileHover={{ scale: 1.1, backgroundColor: "#fee2e2" }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => removeFile(file.name)}
+                        onClick={() => removeFile(file.id, file.name)}
                         className="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-full"
                         transition={{
                           type: "spring",
@@ -377,12 +387,12 @@ const FileUploadUI = () => {
         )}
       </div>
 
-      {/* 確認上傳的彈跳視窗 - 修改為顯示多個檔案 */}
+      {/* 確認上傳的彈跳視窗 - 顯示多個檔案 */}
       {showModal && selectedFiles.length > 0 && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-700">確認上傳</h3>
+              <h3 className="text-lg font-semibold text-gray-700">檔案確認</h3>
               <button onClick={handleCloseModal} className="text-gray-500 hover:text-red-600">
                 <XCircle size={20} />
               </button>
@@ -434,6 +444,17 @@ const FileUploadUI = () => {
           </div>
         </div>
       )}
+
+      {/* 如果 loading 為 true，顯示載入框 */}
+      {isloading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500"></div>
+            <p className="text-white mt-4">正在上傳，請稍候...</p>
+          </div>
+        </div>
+      )}
+
       {/* 成功上傳的動畫視窗 */}
       <AnimatePresence>
         {showSuccessModal && <SuccessModal onClose={handleCloseSuccessModal} fileCount={selectedFiles.length || 0} />}
