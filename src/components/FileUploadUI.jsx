@@ -100,8 +100,15 @@ const FileUploadUI = () => {
     window.open(`/preview/${id}`, "_blank")
   }
 
+  // 幫你改這裡
   const handleEdit = (fileName) => {
-    console.log(`編輯功能尚未實作：${fileName}`)
+    // 找到對應的檔案物件
+    const targetFile = files.find(file => file.name === fileName)
+    if (!targetFile) {
+      console.log("找不到該檔案")
+      return
+    }
+    window.open(`/edit/${targetFile.id}`)
   }
 
   const totalSize = selectedFiles.reduce((sum, file) => sum + parseFloat(file.size), 0).toFixed(2)
